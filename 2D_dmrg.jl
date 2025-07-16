@@ -25,12 +25,12 @@ let
         if i % ncols != 0
             diff = abs(img_flat[i] - img_flat[i + 1])
             #Jh[i] = 2 - (8 / 256) * diff
-            Jh[i] = 2 - (2 / sigma) * diff
+            Jh[i] = 2 - (3 / sigma) * diff
         end
         if i <= nt - ncols
             diff = abs(img_flat[i] - img_flat[i + ncols])
             #Jv[i] = 2 - (8 / 256) * diff
-            Jv[i] = 2 - (2 / sigma) * diff
+            Jv[i] = 2 - (3 / sigma) * diff
         end
     end
 
@@ -52,7 +52,7 @@ let
     end
 
     # 4. Label constraints (seeds)
-    seeds = [(3, -1.0), (201, -1.0)]
+    seeds = [(1,1.0)]
     for (site, label) in seeds
         opsum += -100.0 * label, "Sx", site
     end
