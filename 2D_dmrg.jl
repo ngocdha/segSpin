@@ -25,12 +25,12 @@ let
         if i % ncols != 0
             diff = abs(img_flat[i] - img_flat[i + 1])
             #Jh[i] = 2 - (8 / 256) * diff
-            Jh[i] = 2 - (3 / sigma) * diff
+            Jh[i] = 2 - (6 / sigma) * diff
         end
         if i <= nt - ncols
             diff = abs(img_flat[i] - img_flat[i + ncols])
             #Jv[i] = 2 - (8 / 256) * diff
-            Jv[i] = 2 - (3 / sigma) * diff
+            Jv[i] = 2 - (6 / sigma) * diff
         end
     end
 
@@ -52,7 +52,7 @@ let
     end
 
     # 4. Label constraints (seeds)
-    seeds = [(1,1.0)]
+    seeds = [(200,-1.0)]
     for (site, label) in seeds
         opsum += -100.0 * label, "Sx", site
     end
@@ -78,7 +78,6 @@ let
     sx_matrix = reshape(sx_vals, nrows, ncols)
 
     # 8. Save data to CSV
-    mkpath("examples")
     writedlm("examples/sx_matrix.csv", sx_matrix, ',')
     writedlm("examples/img_reshaped.csv", img_reshaped, ',')
     writedlm("examples/segments.csv", segments, ',')
@@ -107,7 +106,7 @@ let
         end
     end
 
-    final_plot = plot(p1, p2, p3, layout=(1, 3), size=(1200, 400), title="Quantum Segmentation")
-    savefig(final_plot, "plots/quantum_segmentation_results_16x16_seeds.pdf")
-    println("Saved plot to plots/quantum_segmentation_results_16x16_seeds.pdf")
+    final_plot = plot(p1, p2, p3, layout=(1, 3), size=(1200, 400))
+    savefig(final_plot, "plots/quantum_segmentation_results_16x16_face_6.pdf")
+    println("Saved plot to plots/quantum_segmentation_results_16x16_face_6.pdf")
 end
