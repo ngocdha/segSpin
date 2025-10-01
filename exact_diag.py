@@ -1,6 +1,7 @@
 import numpy as np
 from numpy.linalg import eigh
 from functools import reduce
+import matplotlib.pyplot as plt
 
 # Problem setup: 1×8 black/white "image"
 n = 8
@@ -13,9 +14,10 @@ Jx = np.zeros(n - 1)
 for i in range(n - 1):
     d = abs(pix[i] - pix[i + 1])
     Jx[i] = 2.0 - (4.0 / sigma) * d
+print("Jx=",Jx)
 
 # Seeds (empty by default)
-seeds = []
+seeds = [(0,1,10),(7,-1,10)]
 
 # Single-site operators
 sx = np.array([[0, 1], [1, 0]], dtype=np.complex128)
@@ -53,6 +55,8 @@ for i in range(n - 1):
 for (site, label, strength) in seeds:
     H -= (strength * label) * op_on(site, Sx)
 
+
+
 # Diagonalize
 evals, V = eigh(H)
 
@@ -87,13 +91,65 @@ print("sum |c_alpha|^2 (plusx) =", float(c2_plusx.sum()))
 print("sum |c_alpha|^2 (fixedM) =", float(c2_fixed.sum()))
 
 # Top contributors
-topk = 5
+topk = 20
 idx_plusx = np.argsort(-c2_plusx)[:topk]
 idx_fixed = np.argsort(-c2_fixed)[:topk]
-print("top 5 (plusx):", [(int(i), float(c2_plusx[i])) for i in idx_plusx])
+#print("top 5 (plusx):", [(int(i), float(c2_plusx[i])) for i in idx_plusx])
 print("top 5 (fixedM):", [(int(i), float(c2_fixed[i])) for i in idx_fixed])
+print("Probability mass (top 10):", sum([float(c2_fixed[i]) for i in idx_fixed]))
 
-print("V(70) = ", V[70])
+# print("V(70) = ", V[70])
+print("Ground state:", np.argmin(evals))
+
+topkstates = [V[:,idx_fixed[i]] for i in range(topk)]
+#state1 = V[:,idx_fixed[0]]
+#state2 = V[:,idx_fixed[1]]
+#state3 = V[:,idx_fixed[2]]
+#state4 = V[:,idx_fixed[3]]
+#state5 = V[:,idx_fixed[4]]
+ground = V[:,0]
+
+expect_sx = np.zeros(n)
+expect = [np.zeros(n) for _ in range(topk)]
+
+for j in range(n):
+    expect_sx[j] = np.real(np.vdot(ground,op_on(j,Sx)@ground))
+    for i in range(topk):
+        expect[i][j] = np.real(np.vdot(topkstates[i],op2_on(0,j,Sx,Sx)@topkstates[i]))
+
+    
+
+print("Expected spin (ground):", expect_sx)
+#print("Expected spin (state1):", expect_sx1)
+#print("Expected spin (state2):", expect_sx2)
+#print("Expected spin (state3):", expect_sx3)
+#print("Expected spin (state4):", expect_sx4)
+#print("Expected spin (state5):", expect_sx5)
+
+weighted_spin = sum([float(c2_fixed[idx_fixed[i]])*expect[i] for i in range(topk)])
+
+print("Weighted expected spin (top 5):", weighted_spin)
 
 
-# verify if state with highest c_alpha corresponds with ground state
+# Plot overlap distributions
+plt.figure(figsize=(10, 5))
+
+plt.bar(range(len(c2_plusx)), c2_plusx, 
+        alpha=0.6, label="plusx initial state")
+plt.bar(range(len(c2_fixed)), c2_fixed, 
+        alpha=0.6, label="fixed-M initial state")
+
+# Mark the ground state index
+ground_idx = np.argmin(evals)
+plt.axvline(ground_idx, color="red", linestyle="--", label="Ground state")
+
+plt.title("|c_alpha|^2 distribution over eigenstates")
+plt.xlabel("Eigenstate index (α)")
+plt.ylabel("|c_alpha|^2")
+plt.legend()
+plt.tight_layout()
+plt.show()
+
+# explore concentration of probability mass
+
+# measure <S^x_j>, <S^x_0 S^x_j>, weighted sum of c_alpha
