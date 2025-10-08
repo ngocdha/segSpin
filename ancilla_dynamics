@@ -1,0 +1,89 @@
+import numpy as np
+from numpy.linalg import norm
+from functools import reduce
+from scipy.linalg import expm
+
+# 3 qubits: 0=ancilla, 1=black, 2=white
+n = 3
+sx = np.array([[0,1],[1,0]], dtype=np.complex128)
+sy = np.array([[0,1j],[-1j,0]], dtype=np.complex128)
+sz = np.array([[1,0],[0,-1]], dtype=np.complex128)
+Sx, Sy, Sz = 0.5*sx, 0.5*sy, 0.5*sz
+I2 = np.eye(2, dtype=np.complex128)
+
+def kron_all(mats): return reduce(np.kron, mats)
+def op_on(site, A):
+    mats = [I2]*n; mats[site] = A; return kron_all(mats)
+def op2_on(i,j,A,B):
+    mats = [I2]*n; mats[i] = A; mats[j] = B; return kron_all(mats)
+
+# anisotropy Δ from 2-pixel contrast (black=0, white=255)
+pix = np.array([0.0, 255.0])
+sigma = pix.std(ddof=0)             # 127.5
+alpha, beta = 2.0, 4.0/sigma
+Delta = alpha - beta*abs(pix[0]-pix[1])   # -6.0
+
+# terms
+epsilon = 1e-1                      # ancilla–pixel1 XY
+seed_strength, seed_label = 10.0, +1.0    # seed on pixel 2 along z
+H01      = epsilon * (op2_on(0,1,Sx,Sx) + op2_on(0,1,Sy,Sy))
+H12_xy   = (op2_on(1,2,Sx,Sx) + op2_on(1,2,Sy,Sy))
+H12_zz   = Delta * op2_on(1,2,Sz,Sz)
+Hz2      = seed_strength*seed_label*op_on(2, Sz)
+
+# model bond prefactor −1/2 on the (1,2) interaction block
+H12_xy  *= -(0.5)
+H12_zz  *= -(0.5)
+
+# initial state |010> + |001>, normalized
+ket0 = np.array([1,0], dtype=np.complex128); ket1 = np.array([0,1], dtype=np.complex128)
+psi_010 = kron_all([ket0, ket1, ket0])
+psi_001 = kron_all([ket0, ket0, ket1])
+psi = psi_010 + psi_001
+psi /= norm(psi)
+
+# prebuild generators (matrices to exponentiate each step)
+# we’ll exponentiate each with dt or dt/2 inside the step function
+def step_second_order(psi, dt):
+    U01_half = expm(-1j * H01    * (dt/2))
+    Uzz_half = expm(-1j * H12_zz * (dt/2))
+    Uz2_half = expm(-1j * Hz2    * (dt/2))
+    Uxy_full = expm(-1j * H12_xy * dt)
+    # apply in place: U01(½) · Uzz(½) · Uz2(½) · Uxy · Uz2(½) · Uzz(½) · U01(½)
+    psi = U01_half @ psi
+    psi = Uzz_half @ psi
+    psi = Uz2_half @ psi
+    psi = Uxy_full @ psi
+    psi = Uz2_half @ psi
+    psi = Uzz_half @ psi
+    psi = U01_half @ psi
+    return psi
+
+# observables
+Sz_ops = [op_on(j, Sz) for j in range(3)]
+def expect(psi, O): return np.real(np.vdot(psi, O @ psi))
+
+# time loop
+T  = 80.0
+Nt = 4000
+dt = T / Nt
+ts = np.linspace(0.0, T, Nt+1)
+
+sz1_t = np.empty(Nt+1); sz2_t = np.empty(Nt+1)
+sz1_t[0] = expect(psi, Sz_ops[1])
+sz2_t[0] = expect(psi, Sz_ops[2])
+
+for k in range(1, Nt+1):
+    psi = step_second_order(psi, dt)
+    # optional renorm to control rounding drift
+    psi /= norm(psi)
+    sz1_t[k] = expect(psi, Sz_ops[1])
+    sz2_t[k] = expect(psi, Sz_ops[2])
+
+print("Avg <Sz(1)> over time:", float(sz1_t.mean()))
+print("Avg <Sz(2)> over time:", float(sz2_t.mean()))
+
+# optional: segmentation from long-time averages O(i)=1/2+Sz(i)
+Oi_bar = 0.5 + np.array([sz1_t.mean(), sz2_t.mean()])  # for sites 1 and 2
+segments = (Oi_bar >= 0.5).astype(int)
+print("Ō (sites 1,2) =", Oi_bar, "segments =", segments)

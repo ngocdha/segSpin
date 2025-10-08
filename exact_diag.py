@@ -10,11 +10,11 @@ pix = img01 * 255.0
 sigma = pix.std(ddof=0)
 
 # Couplings J_x
-Jx = np.zeros(n - 1)
+Delta = np.zeros(n - 1)
 for i in range(n - 1):
     d = abs(pix[i] - pix[i + 1])
-    Jx[i] = 2.0 - (4.0 / sigma) * d
-print("Jx=",Jx)
+    Delta[i] = 2.0 - (4.0 / sigma) * d
+print("Delta=",Delta)
 
 # Seeds (empty by default)
 seeds = [(0,1,10),(7,-1,10)]
