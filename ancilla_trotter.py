@@ -25,13 +25,12 @@ Delta = alpha - beta*abs(pix[0]-pix[1])   # -6.0
 
 # terms
 epsilon = 1e-1                      # ancilla–pixel1 XY
-seed_strength, seed_label = 10.0, +1.0    # seed on pixel 2 along z
+seed_strength, seed_label = 100, +1.0    # seed on pixel 2 along z
 H01      = epsilon * (op2_on(0,1,Sx,Sx) + op2_on(0,1,Sy,Sy))
 H12_xy   = (op2_on(1,2,Sx,Sx) + op2_on(1,2,Sy,Sy))
 H12_zz   = Delta * op2_on(1,2,Sz,Sz)
 Hz2      = seed_strength*seed_label*op_on(2, Sz)
 
-# model bond prefactor −1/2 on the (1,2) interaction block
 H12_xy  *= -(0.5)
 H12_zz  *= -(0.5)
 
