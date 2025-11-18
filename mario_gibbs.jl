@@ -33,7 +33,11 @@ end
 function build_HI_Hl(sites, edges; seeds_site=Tuple{Int,Float64,Float64}[])
     opsI = OpSum()
     for (i,j,Jz) in edges
-        opsI += -Jz, "Sz", i, "Sz", j
+        # NEW: XX+YY part with unit coefficient
+        opsI += -1.0, "Sx", i, "Sx", j
+        opsI += -1.0, "Sy", i, "Sy", j
+        # J only on the SzSz anisotropy
+        opsI += -Jz,  "Sz", i, "Sz", j
     end
     H_I = MPO(opsI, sites)
 
@@ -42,6 +46,7 @@ function build_HI_Hl(sites, edges; seeds_site=Tuple{Int,Float64,Float64}[])
         opsL += -(strength*label), "Sz", site
     end
     H_l = MPO(opsL, sites)
+
     return H_I, H_l
 end
 

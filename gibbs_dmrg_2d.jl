@@ -25,11 +25,14 @@ function image_to_edges2d(img::AbstractMatrix{<:Real}; kappa::Float64=4.0)
 end
 
 # Build H_I (Sz-Sz) and H_l (local Sz fields) as MPOs
-# seeds_site :: Vector{(site::Int, label::Float64, strength::Float64)} with 1-based site
 function build_HI_Hl(sites, edges; seeds_site=Tuple{Int,Float64,Float64}[])
     opsI = OpSum()
     for (i,j,Jz) in edges
-        opsI += -Jz, "Sz", i, "Sz", j
+        
+        opsI += -1.0, "Sx", i, "Sx", j
+        opsI += -1.0, "Sy", i, "Sy", j
+        
+        opsI += -Jz,  "Sz", i, "Sz", j
     end
     H_I = MPO(opsI, sites)
 
@@ -38,6 +41,7 @@ function build_HI_Hl(sites, edges; seeds_site=Tuple{Int,Float64,Float64}[])
         opsL += -(strength*label), "Sz", site
     end
     H_l = MPO(opsL, sites)
+
     return H_I, H_l
 end
 
@@ -85,7 +89,7 @@ function trunc_SzℓSzi(sites, E, psis, ℓ; β=2.0)
 end
 
 # Truncated Gibbs via DMRG on 2D image
-# seeds_rc :: Vector{(r,c,label,strength)} with label ∈ {±1}
+
 function truncated_gibbs_dmrg_2d(img::AbstractMatrix{<:Real};
         beta::Float64=2.0, mu::Float64=0.0, seeds_rc=Tuple{Int,Int,Float64,Float64}[],
         kappa::Float64=4.0, k::Int=3, label_rc::Tuple{Int,Int}=(1,1),
@@ -118,13 +122,13 @@ using Images, ImageTransformations
 using Plots
 gr()
 
-# --- MNIST → 16×16 → truncated Gibbs DMRG + correctly oriented plots ---
+# Downscaled MNIST example
 
 let
     # Load MNIST training set
     ds = MNIST(split = :train)
-    imgs   = ds.features      # 28×28×N, typically UInt8
-    labels = ds.targets       # Vector{Int}
+    imgs   = ds.features      
+    labels = ds.targets       
 
     # Pick a digit and find first example of that digit
     target_digit = 8
@@ -144,31 +148,30 @@ let
 
     # Truncated Gibbs via DMRG on 16×16 MNIST digit
     beta = 2.0
-    mu   = 1.0                 
+    mu   = 1.0
     label_rc = (8, 8)          
     seeds_rc = [(8,8,+1.0,5.0)]  
-    k = 5
+    k = 2
 
     out = truncated_gibbs_dmrg_2d(
         img16;
         beta    = beta,
         mu      = mu,
         seeds_rc = seeds_rc,
-        kappa   = 4.0,
+        kappa   = 2.0,
         k       = k,
         label_rc = label_rc,
-        maxdims = (50,150,400,800)
+        maxdims = (40,150,400,800)
     )
 
-    # --- Orientation fix: transpose + flip vertically for all 3 panels ---
 
-    input_plot = reverse(permutedims(img16), dims=1)
-    sz_plot    = reverse(permutedims(out.sz_i), dims=1)
-    szlz_plot  = reverse(permutedims(out.szl_szi), dims=1)
+    input_plot = reverse(img16, dims=1)
+    sz_plot    = permutedims(out.sz_i)
+    szlz_plot  = permutedims(out.szl_szi)
 
     # --- Plots: input, ⟨Sᶻ⟩, 2⟨Sᶻ_ℓ Sᶻ⟩ ---
 
-    p0 = heatmap(input_plot,
+    p0 = heatmap(img16,
                  aspect_ratio=1,
                  title="MNIST digit $(labels[idx]) (16×16)",
                  colorbar=false,
@@ -187,8 +190,18 @@ let
                  axis=false)
 
     plot(p0, p1, p2, layout=(1,3), size=(1600,500))
+    savefig("plots/mnist_8.png")
 end
 
 
 
 
+## test parameters: beta and delta (want a natural scale for beta)
+
+## 1D dmrg vs exact
+
+## examine natural scale of beta (try exact ground state energy, and compare with a practical one - energy of a random state)
+
+## beta = 0.1, 0.5, 1, 2, 5...
+
+## measure correlations only from now
