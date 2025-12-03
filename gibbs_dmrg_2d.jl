@@ -3,6 +3,7 @@ using Statistics
 using Plots
 using MLDatasets
 using Images, ImageTransformations
+using NPZ   # <-- NEW: enables saving arrays
 gr()
 
 # ---------------- 2D geometry and couplings ----------------
@@ -78,7 +79,7 @@ function trunc_SzℓSzi(sites, E, psis, ℓ; β=2.0)
     return out
 end
 
-# ---------------- main wrapper: only ⟨Sz_ℓ Sz_i⟩ ----------------
+# ---------------- main wrapper ----------------
 
 function truncated_corr_dmrg_2d(img::AbstractMatrix{<:Real};
         beta::Float64=2.0,
@@ -105,14 +106,14 @@ function truncated_corr_dmrg_2d(img::AbstractMatrix{<:Real};
     return (; szl_szi, nrows=geom.nrows, ncols=geom.ncols, label_site=ℓ_site)
 end
 
-# ---------------- MNIST 16×16 example: input + 2⟨Sz_ℓ Sz_i⟩ ----------------
+# ---------------- MNIST example w/ saving arrays ----------------
 
 let
     ds = MNIST(split = :train)
     imgs   = ds.features
     labels = ds.targets
 
-    target_digit = 8
+    target_digit = 7
     idx = findfirst(==(target_digit), labels)
     idx === nothing && (idx = 1)
 
@@ -122,51 +123,53 @@ let
     scale = maximum(img28) ≤ 1 ? 255.0 : 1.0
     img28 .*= scale
 
-    img_small = imresize(img28, (12, 12))
+    nr = 12
+    img_small = imresize(img28, (nr, nr))
 
-    beta = 2.0
-    label_rc = (8, 8)   # correlation anchor
+    betas = [0.1, 0.5, 1.0, 2.0, 5.0]
+    label_rc = (8, 8)
     k = 5
 
-    start = time()
+    for β in betas
+        println("Running β = $β")
+        start = time()
 
-    out = truncated_corr_dmrg_2d(
-        img_small;
-        beta    = beta,
-        kappa   = 2.0,
-        k       = k,
-        label_rc = label_rc,
-        maxdims = (40,150,400,800)
-    )
+        out = truncated_corr_dmrg_2d(
+            img_small;
+            beta    = β,
+            kappa   = 2.0,
+            k       = k,
+            label_rc = label_rc,
+            maxdims = (40,150,400,800)
+        )
 
-    println("DMRG runtime = $(time() - start) seconds")
+        runtime = time() - start
+        println("DMRG runtime (β = $β) = $runtime seconds")
 
-    # Orientation fix: transpose + flip vertically for both panels
-    input_plot = reverse(img_small, dims=1)
-    corr_plot  = reverse(permutedims(out.szl_szi),dims=1)
+        # orientation fixes
+        input_plot = reverse(permutedims(img_small), dims=1)
+        corr_plot  = reverse(out.szl_szi, dims=1)
 
-    p0 = heatmap(input_plot,
-                 aspect_ratio=1,
-                 title="MNIST digit $(labels[idx]) (16×16)",
-                 colorbar=true,
-                 axis=false)
+        # ----- NEW: Save numeric arrays -----
+        npzwrite("saved/input_raw_$(labels[idx])_$(nr)x$(nr)_beta$(β).npy", img_small)
+        npzwrite("saved/corr_raw_$(labels[idx])_$(nr)x$(nr)_beta$(β).npy", out.szl_szi)
 
-    p1 = heatmap(2 .* corr_plot,
-                 aspect_ratio=1,
-                 title="Z-Spin Correlation",
-                 colorbar=true,
-                 axis=false)
+        npzwrite("saved/input_plot_$(labels[idx])_$(nr)x$(nr)_beta$(β).npy", input_plot)
+        npzwrite("saved/corr_plot_$(labels[idx])_$(nr)x$(nr)_beta$(β).npy", corr_plot)
 
-    plot(p0, p1, layout=(1,2), size=(1200,500))
-    savefig("plots/mnist_8_8x8.png")
+        p0 = heatmap(input_plot,
+                     aspect_ratio=1,
+                     title="MNIST digit $(labels[idx]) ($(nr)×$(nr))",
+                     colorbar=true,
+                     axis=false)
+
+        p1 = heatmap(2 .* corr_plot,
+                     aspect_ratio=1,
+                     title="Z-Spin Correlation (β = $β)",
+                     colorbar=true,
+                     axis=false)
+
+        plt = plot(p0, p1, layout=(1,2), size=(1200,500))
+        savefig(plt, "plots/mnist_$(labels[idx])_$(nr)x$(nr)_beta$(β).png")
+    end
 end
-
-# test parameters: beta and delta (want a natural scale for beta)
-
-# 1D dmrg vs exact
-
-# examine natural scale of beta (try exact ground state energy, and compare with a practical one - energy of a random state)
-
-# beta = 0.1, 0.5, 1, 2, 5...
-
-# measure correlations only from now
