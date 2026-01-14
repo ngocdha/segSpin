@@ -229,12 +229,18 @@ def horizontal_slice_segmentation(img, beta, kappa=4.0,
 
 
 
-# Example: toy 8x8 (left-most pixel black in every row)
-
+# -------------------------
+# Example: toy 8x8 + MNIST 8x8
+# -------------------------
 if __name__ == "__main__":
-    # Toy 8x8 grayscale image in [0,255].
-    # Guarantee first element of each row is black (0).
-    img8 = np.array([
+    import matplotlib.pyplot as plt
+    from sklearn.datasets import fetch_openml
+    from skimage.transform import resize
+
+
+    # 1) TOY 8x8 EXAMPLE (guaranteed left-most pixel black)
+
+    img8_toy = np.array([
         [0,   0,   0,   0, 255, 255, 255, 255],
         [0,   0,   0, 255, 255, 255, 255, 255],
         [0,   0, 255, 255, 255, 255, 255, 255],
@@ -246,41 +252,101 @@ if __name__ == "__main__":
     ], dtype=float)
 
     beta = 5.0
-    kappa = 4.0
+    kappa = 3.0
+    pin_mode = "final_only"   # or "in_H"
 
-    # Choose pin mode: "in_H" or "final_only"
-    pin_mode = "final_only"
-
-    seg, C_map, _ = horizontal_slice_segmentation(
-        img8,
+    seg_toy, C_toy, _ = horizontal_slice_segmentation(
+        img8_toy,
         beta=beta,
         kappa=kappa,
         label_site=0,
-        pin_strength=30.0,   # used only if pin_mode="in_H"
+        pin_strength=30.0,
         mu=1.0,
         black_label=+1,
         threshold=0.0,
         pin_mode=pin_mode
     )
 
-    # Plot results
-    plt.figure(figsize=(12, 4))
 
-    plt.subplot(1, 3, 1)
-    plt.imshow(img8, cmap="gray", vmin=0, vmax=255, interpolation="nearest")
-    plt.title("Toy image (8x8)\n(left-most pixel black)")
+    # 2) MNIST → 8x8 EXAMPLE
+  
+    print("Loading MNIST...")
+    X, y = fetch_openml("mnist_784", version=1, return_X_y=True, as_frame=False)
+
+    idx = 0   # change to explore
+    img28 = X[idx].reshape(28, 28)
+    label = y[idx]
+
+    # Resize to 8x8
+    img8_mnist = resize(
+        img28,
+        (8, 8),
+        order=1,
+        mode="reflect",
+        anti_aliasing=True
+    )
+
+    # Rescale to [0,255]
+    img8_mnist = img8_mnist / img8_mnist.max() * 255.0
+
+
+    # Enforce left-most pixel black (boundary condition consistency)
+    img8_mnist[:, 0] = 0.0
+
+    # Optional: visualize row-wise sigmas to diagnose stability
+    print("MNIST row sigmas:", [img8_mnist[r, :].std() for r in range(8)])
+
+    seg_mnist, C_mnist, _ = horizontal_slice_segmentation(
+        img8_mnist,
+        beta=beta,
+        kappa=kappa,
+        label_site=0,
+        pin_strength=30.0,
+        mu=1.0,
+        black_label=+1,
+        threshold=0.0,
+        pin_mode=pin_mode
+    )
+
+
+    # Plot results
+
+    plt.figure(figsize=(14, 6))
+
+    # ---- Toy ----
+    plt.subplot(2, 3, 1)
+    plt.imshow(img8_toy, cmap="gray", vmin=0, vmax=255)
+    plt.title("Toy image (8×8)")
     plt.axis("off")
 
-    plt.subplot(1, 3, 2)
-    plt.imshow(C_map, interpolation="nearest")
-    plt.title(r"$2\langle S_0^z S_i^z\rangle$ (row-wise)")
+    plt.subplot(2, 3, 2)
+    plt.imshow(C_toy, interpolation="nearest")
+    plt.title(r"Toy: $2\langle S_0^z S_i^z\rangle$")
     plt.colorbar(fraction=0.046, pad=0.04)
     plt.axis("off")
 
-    plt.subplot(1, 3, 3)
-    plt.imshow(seg, cmap="gray", vmin=0, vmax=255, interpolation="nearest")
-    plt.title(f"Segmentation (pin_mode={pin_mode})")
+    plt.subplot(2, 3, 3)
+    plt.imshow(seg_toy, cmap="gray", vmin=0, vmax=255)
+    plt.title(f"Toy segmentation\n(pin_mode={pin_mode})")
+    plt.axis("off")
+
+    # ---- MNIST ----
+    plt.subplot(2, 3, 4)
+    plt.imshow(img8_mnist, cmap="gray", vmin=0, vmax=255)
+    plt.title(f"MNIST digit {label} → 8×8")
+    plt.axis("off")
+
+    plt.subplot(2, 3, 5)
+    plt.imshow(C_mnist, interpolation="nearest")
+    plt.title(r"MNIST: $2\langle S_0^z S_i^z\rangle$")
+    plt.colorbar(fraction=0.046, pad=0.04)
+    plt.axis("off")
+
+    plt.subplot(2, 3, 6)
+    plt.imshow(seg_mnist, cmap="gray", vmin=0, vmax=255)
+    plt.title(f"MNIST segmentation\n(pin_mode={pin_mode})")
     plt.axis("off")
 
     plt.tight_layout()
     plt.show()
+
