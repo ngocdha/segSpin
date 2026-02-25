@@ -662,31 +662,72 @@ def run_resumable(
 # Example (12x12 MNIST)
 # -------------------------
 
+# if __name__ == "__main__":
+
+#     img = load_mnist_12x12(index=0)  # change index for different digit
+
+#     H, W = img.shape
+
+#     beta = 6.0
+#     kappa = 3.0
+
+#     # Keep k small or this explodes.
+#     k_top = 4
+
+#     WINDOW = 3
+#     PRUNE_MODE = "stability_only"
+#     CAP_FRAC = 1.0
+#     EPS = 0.005
+
+#     out_dir = (
+#         f"out_pruned_"
+#         f"{H}x{W}_"
+#         f"MNIST_"
+#         f"{PRUNE_MODE}_"
+#         f"win{WINDOW}_"
+#         f"eps{EPS}"
+#     )
+
+#     run_resumable(
+#         img,
+#         beta=beta,
+#         kappa=kappa,
+#         k_top=k_top,
+#         label_site=0,
+#         n_samples=32,   # reduce for speed
+#         seed=0,
+#         k_freeze_start=3,
+#         eps=EPS,
+#         tau=0.15,
+#         tau_B=0.05,
+#         min_agree=3,
+#         prune_mode=PRUNE_MODE,
+#         cap_frac=CAP_FRAC,
+#         window=WINDOW,
+#         out_dir=out_dir
+#     )
+
 if __name__ == "__main__":
+    H = 5
+    W = 5
 
-    img = load_mnist_12x12(index=0)  # change index for different digit
+    img = make_plus_image(H=H, W=W, white=255.0, black=0.0, thickness=1)
 
-    H, W = img.shape
-
-    beta = 6.0
+    beta = 10.0
     kappa = 3.0
-
-    # ⚠️ IMPORTANT: 12x12 = 144 spins
-    # Keep k small or this explodes.
-    k_top = 4
+    k_top = 9
 
     WINDOW = 3
     PRUNE_MODE = "stability_only"
     CAP_FRAC = 1.0
-    EPS = 0.01
 
+    # 🔹 Automatic output directory
     out_dir = (
         f"out_pruned_"
         f"{H}x{W}_"
-        f"MNIST_"
         f"{PRUNE_MODE}_"
         f"win{WINDOW}_"
-        f"eps{EPS}"
+        f"eps{0.001}"
     )
 
     run_resumable(
@@ -695,12 +736,12 @@ if __name__ == "__main__":
         kappa=kappa,
         k_top=k_top,
         label_site=0,
-        n_samples=32,   # reduce for speed
+        n_samples=64,
         seed=0,
         k_freeze_start=3,
-        eps=EPS,
-        tau=0.15,
-        tau_B=0.05,
+        eps=0.005,
+        tau=0.20,
+        tau_B=0.06,
         min_agree=3,
         prune_mode=PRUNE_MODE,
         cap_frac=CAP_FRAC,
