@@ -716,7 +716,7 @@ if __name__ == "__main__":
     H = 5
     W = 5
 
-    img = np.full((H, W), 255.0, dtype=float)
+    img = make_plus_image(H=H, W=W, white=255.0, black=0.0, thickness=1)
 
     beta = 10.0
     kappa = 3.0
@@ -731,7 +731,9 @@ if __name__ == "__main__":
         f"{H}x{W}_"
         f"{PRUNE_MODE}_"
         f"win{WINDOW}_"
-        f"eps{0.001}"
+        f"eps{0.01}"
+        f"seed1"
+        f"n_samples256"
     )
 
     run_resumable(
@@ -740,9 +742,9 @@ if __name__ == "__main__":
         kappa=kappa,
         k_top=k_top,
         label_site=0,
-        n_samples=64,
-        seed=0,
-        k_freeze_start=5,
+        n_samples=256,
+        seed=1,
+        k_freeze_start=3,
         eps=0.005,
         tau=0.20,
         tau_B=0.06,
@@ -750,5 +752,5 @@ if __name__ == "__main__":
         prune_mode=PRUNE_MODE,
         cap_frac=CAP_FRAC,
         window=WINDOW,
-        out_dir="out_allwhite_seed0_freeze5"
+        out_dir=out_dir
     )
